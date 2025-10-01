@@ -94,6 +94,27 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- NEW: Cheating Modal with Countdown -->
+            <div id="cheating-modal" class="hidden fixed inset-0 bg-red-600 bg-opacity-70 flex items-center justify-center p-4 z-50">
+                <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform duration-300 scale-100">
+                    <div class="text-6xl mb-4">😾</div>
+                    <h3 class="text-2xl font-bold text-red-700 mb-3">อย่านอกใจแฟนสิ!!!</h3>
+                    <p class="text-red-500 text-lg font-mono mb-4">ความเข้ากัน: 0%</p>
+                    
+                    <div class="p-3 bg-red-100 border border-red-300 rounded-lg mb-6">
+                        <p class="text-sm text-red-800 font-semibold">
+                            งอล 10 วิ: 
+                            <span id="countdown-timer" class="text-2xl font-black ml-2">10</span>
+                        </p>
+                    </div>
+
+                    <button id="make-up-button" disabled
+                            class="w-full py-3 bg-gray-400 text-white font-bold rounded-lg transition duration-200 cursor-not-allowed">
+                        ดีกัน
+                    </button>
+                </div>
+            </div>
 
              <!-- Admin Key Input Modal (Buttons swapped: Cancel left, Submit right) -->
              <div id="admin-key-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -220,20 +241,23 @@
         window.closeModal = function(modalId) {
             document.getElementById(modalId).classList.add('hidden');
             document.getElementById('body').classList.remove('overflow-hidden-body');
-            // Reset message modal title/content if it was used for confirmation
-            document.getElementById('modal-title').textContent = 'แจ้งเตือน';
-            // Restore default OK button behavior
-            const modalContent = document.getElementById('message-modal').querySelector('.bg-white');
-            const buttonContainer = modalContent.querySelector('.flex.space-x-2');
-            if(buttonContainer) buttonContainer.remove();
             
-            let defaultBtn = modalContent.querySelector('button');
-            if(!defaultBtn) {
-                 defaultBtn = document.createElement('button');
-                 defaultBtn.textContent = 'ตกลง';
-                 defaultBtn.onclick = () => closeModal(modalId);
-                 defaultBtn.className = 'w-full py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600';
-                 modalContent.appendChild(defaultBtn);
+            // Reset message modal title/content if it was used for confirmation
+            if (modalId === 'message-modal') {
+                document.getElementById('modal-title').textContent = 'แจ้งเตือน';
+                // Restore default OK button behavior
+                const modalContent = document.getElementById('message-modal').querySelector('.bg-white');
+                const buttonContainer = modalContent.querySelector('.flex.space-x-2');
+                if(buttonContainer) buttonContainer.remove();
+                
+                let defaultBtn = modalContent.querySelector('button');
+                if(!defaultBtn) {
+                     defaultBtn = document.createElement('button');
+                     defaultBtn.textContent = 'ตกลง';
+                     defaultBtn.onclick = () => closeModal(modalId);
+                     defaultBtn.className = 'w-full py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600';
+                     modalContent.appendChild(defaultBtn);
+                }
             }
         }
 
@@ -247,6 +271,45 @@
             // Generates a compatibility percentage between 40% and 100%
             return Math.floor(Math.random() * (100 - 40 + 1)) + 40;
         }
+        
+        /**
+         * Handles the special 0% Cheating case with a 10-second countdown.
+         */
+        window.showCheatingModal = async function(userName, crushName) {
+            openModal('cheating-modal');
+            
+            const timerEl = document.getElementById('countdown-timer');
+            const makeUpBtn = document.getElementById('make-up-button');
+
+            // Reset button state
+            makeUpBtn.disabled = true;
+            makeUpBtn.className = 'w-full py-3 bg-gray-400 text-white font-bold rounded-lg transition duration-200 cursor-not-allowed';
+            
+            let countdown = 10;
+            timerEl.textContent = countdown;
+
+            // Save the 0% result to Firestore (for admin tracking)
+            await saveMatch(userName, crushName, 0);
+
+            const timerInterval = setInterval(() => {
+                countdown--;
+                timerEl.textContent = countdown;
+
+                if (countdown <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.textContent = '0';
+                    // Enable the button and change its style
+                    makeUpBtn.disabled = false;
+                    makeUpBtn.className = 'w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition duration-200';
+                }
+            }, 1000);
+
+            // Set up the button click handler to close the modal
+            makeUpBtn.onclick = function() {
+                closeModal('cheating-modal');
+            };
+        }
+
 
         // --- Firebase Initialization and Authentication ---
         const configStatusEl = document.getElementById('config-status');
@@ -657,23 +720,64 @@
             // 1. Calculate and Display Result (The part the user sees)
             let compatibility;
             
-            // --- Custom Logic: Lock to 100% for "มิวสิค" และ "พลอย" ---
-            const name1 = userName.toLowerCase();
-            const name2 = crushName.toLowerCase();
-            
-            // Check for names "มิวสิค" (Music) and "พลอย" (Ploy) in any casing and order
-            const isMusicPloyPair = 
-                (name1 === "มิวสิค" && name2 === "พลอย") || 
-                (name1 === "พลอย" && name2 === "มิวสิค");
+            // --- Custom Logic: Lock to 100% or 0% for specific names ---
+            const name1Lower = userName.toLowerCase();
+            const name2Lower = crushName.toLowerCase();
 
-            if (isMusicPloyPair) {
-                compatibility = 100; // Locked to 100% as requested by the creator
-                // Removed showMessage("รักแท้! ความเข้ากันถูกล็อกที่ 100% สำหรับคู่นี้!", "🔒 ผลลัพธ์พิเศษ");
+            // Define the specific target name groups (normalized to lowercase)
+            // Group 1: Music/Ploy
+            const target1_A = ["มิวสิค", "music"]; 
+            const target1_B = ["พลอย", "ploy"];   
+            
+            // Group 2: Li Meilian/Yu Chen
+            const target2_A = ["李美莲", "limeilian"]; 
+            const target2_B = ["宇晨", "yuchen"];   
+
+            let isLockedPair = false;
+            let isCheatingCase = false;
+
+            // --- Check for 100% Locked Pairs ---
+            // Case 1: Music (A) & Ploy (B)
+            const isName1InTarget1A = target1_A.includes(name1Lower);
+            const isName1InTarget1B = target1_B.includes(name1Lower);
+            const isName2InTarget1A = target1_A.includes(name2Lower);
+            const isName2InTarget1B = target1_B.includes(name2Lower);
+
+            if ((isName1InTarget1A && isName2InTarget1B) || (isName1InTarget1B && isName2InTarget1A)) {
+                isLockedPair = true;
+            }
+
+            // Case 2: Li Meilian (C) & Yu Chen (D)
+            const isName1InTarget2A = target2_A.includes(name1Lower);
+            const isName1InTarget2B = target2_B.includes(name1Lower);
+            const isName2InTarget2A = target2_A.includes(name2Lower);
+            const isName2InTarget2B = target2_B.includes(name2Lower);
+
+            if ((isName1InTarget2A && isName2InTarget2B) || (isName1InTarget2B && isName2InTarget2A)) {
+                isLockedPair = true;
+            }
+            
+            // --- Check for 0% Cheating Case ---
+            const isPloyInvolved = isName1InTarget1B || isName2InTarget1B;
+
+            // Cheating Condition: Ploy is one of the names AND it's NOT a 100% locked pair.
+            if (isPloyInvolved && !isLockedPair) {
+                isCheatingCase = true;
+            }
+
+            if (isCheatingCase) {
+                compatibility = 0;
+                // Immediately trigger the special modal
+                showCheatingModal(userName, crushName); 
+                return; // Stop further execution for this case
+            } else if (isLockedPair) {
+                compatibility = 100; // Locked to 100%
             } else {
-                compatibility = getRandomCompatibility(); // Use random function for all other names
+                compatibility = getRandomCompatibility(); // Random function for all other names
             }
             // -----------------------------------------------------------------
 
+            // 2. Display Result (Only for non-cheating cases)
             const resultText = document.getElementById('result-text');
             const resultContainer = document.getElementById('result-container');
 
@@ -684,7 +788,7 @@
             `;
             resultContainer.classList.remove('hidden');
 
-            // 2. Save data to Firestore (The part only the creator sees)
+            // 3. Save data to Firestore 
             await saveMatch(userName, crushName, compatibility);
 
             // Clear the form after submission
@@ -724,7 +828,8 @@
             // Block triple click if any modal is currently visible
             if (!document.getElementById('message-modal').classList.contains('hidden') || 
                 !document.getElementById('admin-key-modal').classList.contains('hidden') ||
-                !document.getElementById('send-message-modal').classList.contains('hidden')) {
+                !document.getElementById('send-message-modal').classList.contains('hidden') ||
+                !document.getElementById('cheating-modal').classList.contains('hidden')) { // Check new modal
                 return; 
             }
 
