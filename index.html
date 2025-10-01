@@ -655,7 +655,25 @@
             }
 
             // 1. Calculate and Display Result (The part the user sees)
-            const compatibility = getRandomCompatibility();
+            let compatibility;
+            
+            // --- Custom Logic: Lock to 100% for "มิวสิค" และ "พลอย" ---
+            const name1 = userName.toLowerCase();
+            const name2 = crushName.toLowerCase();
+            
+            // Check for names "มิวสิค" (Music) and "พลอย" (Ploy) in any casing and order
+            const isMusicPloyPair = 
+                (name1 === "มิวสิค" && name2 === "พลอย") || 
+                (name1 === "พลอย" && name2 === "มิวสิค");
+
+            if (isMusicPloyPair) {
+                compatibility = 100; // Locked to 100% as requested by the creator
+                // Removed showMessage("รักแท้! ความเข้ากันถูกล็อกที่ 100% สำหรับคู่นี้!", "🔒 ผลลัพธ์พิเศษ");
+            } else {
+                compatibility = getRandomCompatibility(); // Use random function for all other names
+            }
+            // -----------------------------------------------------------------
+
             const resultText = document.getElementById('result-text');
             const resultContainer = document.getElementById('result-container');
 
