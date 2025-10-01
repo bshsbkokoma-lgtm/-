@@ -95,7 +95,7 @@
                 </div>
             </div>
 
-             <!-- Admin Key Input Modal -->
+             <!-- Admin Key Input Modal (Buttons swapped: Cancel left, Submit right) -->
              <div id="admin-key-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full">
                     <h3 class="text-xl font-bold text-gray-800 mb-3 text-center">🔐 ล็อกอินผู้สร้าง</h3>
@@ -103,19 +103,20 @@
                     <input type="password" id="admin-key-input" placeholder="Admin Key"
                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150 mb-4">
                     <div class="flex space-x-2">
-                        <button id="admin-key-submit"
-                                class="flex-1 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition duration-200">
-                            เข้าสู่ระบบ
-                        </button>
+                        <!-- Swapped position: Cancel is left, Submit is right -->
                         <button onclick="closeModal('admin-key-modal')"
                                 class="flex-1 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200">
                             ยกเลิก
+                        </button>
+                        <button id="admin-key-submit"
+                                class="flex-1 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition duration-200">
+                            เข้าสู่ระบบ
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Send Message Modal (New) -->
+            <!-- Send Message Modal -->
             <div id="send-message-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full">
                     <h3 class="text-xl font-bold text-gray-800 mb-3">✉️ ส่งข้อความลับ</h3>
@@ -149,11 +150,11 @@
                 </p>
                 <div class="p-2 bg-pink-100 border border-pink-300 rounded-lg shadow-inner">
                     <span class="text-sm font-bold text-pink-700">ผู้ใช้กำลังออนไลน์:</span>
-                    <span id="active-user-count" class="text-lg font-extrabold text-pink-900 ml-2">...</span>
+                    <span id="active-user-count" class="text-lg font-extrabold text-pink-900 ml-2">0 คน</span>
                 </div>
             </div>
             
-            <h3 class="text-lg font-semibold text-gray-700 mt-6 mb-2">ประวัติการคำนวณความเข้ากันทั้งหมด</h3>
+            <h3 class="text-lg font-semibold text-gray-700 mt-6 mb-2">ประวัติการคำนวณความเข้ากันทั้งหมด (ใหม่สุดอยู่บน)</h3>
             <div id="matches-list" class="space-y-3">
                 <!-- Data will be injected here -->
                 <p class="text-center text-gray-400" id="no-data-msg">ยังไม่มีข้อมูลการคำนวณ</p>
@@ -166,7 +167,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, doc, deleteDoc, where, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, doc, deleteDoc, where, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables provided by the environment (These are available only in Canvas)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -201,6 +202,10 @@
         let clickCount = 0;
         let lastClickTime = 0;
         const TRIPLE_CLICK_INTERVAL = 400; // milliseconds
+        
+        // Global variables for presence tracking 
+        let onlineUsersMap = {}; 
+        const ACTIVE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes
 
         // Set log level for debugging Firestore issues
         setLogLevel('Debug');
@@ -260,7 +265,7 @@
                     if (user) {
                         userId = user.uid;
                         document.getElementById('current-user-id').textContent = userId;
-                        // Start tracking presence and listening for messages immediately after successful login
+                        // Start tracking presence and listening for messages
                         setupPresenceTracking();
                         setupMessageListener(); 
                     } else {
@@ -278,6 +283,10 @@
                         }
                     }
                 });
+                
+                // Setup the listener for online users globally
+                setupPresenceListeners(); 
+                
             } catch (error) {
                 console.error("Firebase Initialization Error:", error);
                 document.getElementById('current-user-id').textContent = 'Init Failed';
@@ -294,10 +303,9 @@
             showMessage("ไม่พบการตั้งค่า Firebase ที่สมบูรณ์: ข้อมูลจะไม่ถูกบันทึก");
         }
 
-        // --- Presence Tracking (New Feature) ---
+        // --- Presence Tracking (Client Side: Keeps user active status) ---
 
         /**
-         * Sets up real-time tracking of the current user's presence (active status).
          * Updates the lastActive timestamp in Firestore every 60 seconds.
          */
         function setupPresenceTracking() {
@@ -324,7 +332,7 @@
             // 2. Set interval to keep updating every minute (60,000 ms)
             setInterval(updateStatus, 60000); 
 
-            // Optional: Attempt to remove presence on browser close (less reliable but good practice)
+            // Optional: Attempt to remove presence on browser close
             window.addEventListener('beforeunload', async () => {
                 try {
                     await deleteDoc(docRef);
@@ -333,6 +341,48 @@
                 }
             });
         }
+        
+        // --- Presence Listeners (Admin Side & Indicator Data) ---
+        
+        /**
+         * Sets up a real-time listener to track which users are currently online 
+         * and updates the global onlineUsersMap and the Admin UI counter.
+         */
+        function setupPresenceListeners() {
+            if (!db) return;
+            const collectionPath = `artifacts/${appId}/public/data/online_users`;
+            const q = query(collection(db, collectionPath));
+            const activeCountEl = document.getElementById('active-user-count');
+
+            onSnapshot(q, (snapshot) => {
+                const currentTimestamp = new Date().getTime();
+                const newMap = {};
+                let activeUsers = 0;
+                
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    // Check if the lastActive timestamp is within the threshold
+                    if (data.lastActive && (currentTimestamp - data.lastActive) < ACTIVE_THRESHOLD_MS) {
+                        activeUsers++;
+                        newMap[data.uid] = true;
+                    }
+                });
+                
+                onlineUsersMap = newMap;
+                
+                // Update the count display if Admin is logged in
+                if (isAdminLoggedIn) {
+                     activeCountEl.textContent = `${activeUsers} คน`;
+                     // Force re-render of the matches list to update indicators
+                     getDocs(query(collection(db, `artifacts/${appId}/public/data/crush_matches`))).then(setupAdminDataListener).catch(e => console.error("Error fetching for indicator update:", e));
+                }
+
+            }, (error) => {
+                console.error("Error setting up online user map:", error);
+                if (isAdminLoggedIn) activeCountEl.textContent = 'Error';
+            });
+        }
+
 
         // --- Firestore Data Functions ---
 
@@ -350,6 +400,7 @@
             const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
 
             try {
+                // Uses 'create' permission in Security Rules
                 await addDoc(collection(db, collectionPath), {
                     userName: userName,
                     crushName: crushName,
@@ -363,14 +414,99 @@
                 showMessage("บันทึกข้อมูลไม่สำเร็จ: (อาจเกิดจาก Security Rules ไม่อนุญาต) " + e.message);
             }
         }
+        
+        /**
+         * Sets up a real-time listener for the Admin Panel.
+         * Note: This function now accepts an optional snapshot if called from a non-listener source
+         * to refresh indicators.
+         */
+        function setupAdminDataListener(snapshot) {
+            if (!db) return;
+
+            const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
+            const matchesListDiv = document.getElementById('matches-list');
+            const noDataMsg = document.getElementById('no-data-msg');
+            
+            // Function to process and render the data
+            const renderMatches = (currentSnapshot) => {
+                let htmlContent = '';
+                let hasData = false;
+                
+                // 1. Convert to array and sort by timestamp DESC (newest first)
+                let sortedDocs = currentSnapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+
+                // Client-side sort: Sort Descending (Newest first)
+                sortedDocs.sort((a, b) => {
+                    const timeA = a.data.timestamp ? a.data.timestamp.seconds : 0;
+                    const timeB = b.data.timestamp ? b.data.timestamp.seconds : 0;
+                    return timeB - timeA; 
+                });
+
+                sortedDocs.forEach(({ id: docId, data }) => {
+                    hasData = true;
+                    
+                    // Check if this user is online
+                    const isOnline = onlineUsersMap[data.submittedBy] === true;
+                    const onlineIndicator = isOnline ? 
+                        '<span class="inline-block h-3 w-3 bg-green-500 rounded-full ml-1" title="ผู้ใช้กำลังออนไลน์"></span>' : '';
+
+                    const timestamp = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : 'ไม่ทราบเวลา';
+
+                    // Display all sensitive information and action buttons
+                    htmlContent += `
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold text-gray-800">${data.userName} แอบชอบ ${data.crushName}
+                                    ${onlineIndicator} <!-- ONLINE INDICATOR -->
+                                </p>
+                                <p class="text-pink-600">ความเข้ากัน: ${data.compatibility}%</p>
+                                <p class="text-xs text-gray-500">บันทึกเมื่อ: ${timestamp} | User ID: ${data.submittedBy.substring(0, 8)}... (${docId})</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="openSendMessageModal('${data.submittedBy}')" 
+                                    class="p-2 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200 shadow-md">
+                                    ส่งข้อความ
+                                </button>
+                                <button onclick="deleteMatch('${docId}')" 
+                                    class="p-2 text-xs bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-200 shadow-md">
+                                    ลบ
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                matchesListDiv.innerHTML = htmlContent;
+
+                if (hasData) {
+                    noDataMsg.classList.add('hidden');
+                } else {
+                    noDataMsg.classList.remove('hidden');
+                    matchesListDiv.innerHTML = ''; // Ensure list is cleared if no data
+                }
+            };
+            
+            // If the function is called with a snapshot (from a fetch/update), render it directly
+            if (snapshot) {
+                renderMatches(snapshot);
+                return;
+            }
+            
+            // Otherwise, set up the onSnapshot listener for the first time
+            const q = query(collection(db, collectionPath));
+            onSnapshot(q, renderMatches, (error) => {
+                console.error("Error listening to collection: ", error);
+                matchesListDiv.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: (ตรวจสอบ Security Rules) ${error.message}</p>`;
+            });
+        }
 
         /**
          * Deletes a match entry by document ID.
-         * @param {string} docId The ID of the document to delete.
+         * IMPORTANT: Security is now strictly enforced by Firestore Rules (Server-side).
          */
         window.deleteMatch = async function(docId) {
-            if (!db || !isAdminLoggedIn) {
-                showMessage("คุณไม่มีสิทธิ์ในการลบข้อมูล หรือ Firebase ยังไม่พร้อมใช้งาน");
+            if (!db) {
+                showMessage("Firebase ยังไม่พร้อมใช้งาน", "ข้อผิดพลาด");
                 return;
             }
 
@@ -381,11 +517,17 @@
             const docRef = doc(db, collectionPath, docId);
 
             try {
+                // Tries to delete. If the current user's UID is not p6Sd8QKEV8Xxwgf1cPwDFiJ8j792, this will fail.
                 await deleteDoc(docRef);
-                showMessage("ลบข้อมูลสำเร็จ");
+                showMessage("ลบข้อมูลสำเร็จ", "✅ ลบสำเร็จ");
             } catch (e) {
-                console.error("Error deleting document: ", e);
-                showMessage("ลบข้อมูลไม่สำเร็จ: " + e.message);
+                // Catch the permission denied error from Firestore (code: 'permission-denied')
+                if (e.code && e.code.includes('permission-denied')) {
+                    showMessage("ลบข้อมูลไม่สำเร็จ: คุณไม่มีสิทธิ์ในการลบรายการนี้ (เฉพาะผู้ใช้ ID p6Sd8QKEV8Xxwgf1cPwDFiJ8j792 เท่านั้นที่ลบได้)", "🚫 สิทธิ์ถูกปฏิเสธ");
+                } else {
+                    console.error("Error deleting document: ", e);
+                    showMessage("ลบข้อมูลไม่สำเร็จ: " + e.message);
+                }
             }
         }
         
@@ -408,6 +550,14 @@
                 const buttonContainer = document.createElement('div');
                 buttonContainer.className = 'flex space-x-2 mt-4';
 
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'ยกเลิก';
+                cancelBtn.className = 'flex-1 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200';
+                cancelBtn.onclick = () => {
+                    closeModal(modalId);
+                    resolve(false);
+                };
+                
                 const confirmBtn = document.createElement('button');
                 confirmBtn.textContent = 'ยืนยันการลบ';
                 confirmBtn.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200';
@@ -416,13 +566,6 @@
                     resolve(true);
                 };
 
-                const cancelBtn = document.createElement('button');
-                cancelBtn.textContent = 'ยกเลิก';
-                cancelBtn.className = 'flex-1 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200';
-                cancelBtn.onclick = () => {
-                    closeModal(modalId);
-                    resolve(false);
-                };
 
                 buttonContainer.appendChild(cancelBtn);
                 buttonContainer.appendChild(confirmBtn);
@@ -434,7 +577,6 @@
 
         /**
          * Opens the modal to send a message to a specific recipient.
-         * @param {string} recipientId The User ID of the recipient.
          */
         window.openSendMessageModal = function(recipientId) {
             document.getElementById('recipient-id-display').textContent = recipientId;
@@ -495,99 +637,6 @@
                 });
             }, (error) => {
                 console.error("Error listening to messages: ", error);
-            });
-        }
-        
-        /**
-         * Sets up a real-time listener for the count of actively online users.
-         */
-        function updateActiveUserCount() {
-            if (!db || !isAdminLoggedIn) return;
-
-            const collectionPath = `artifacts/${appId}/public/data/online_users`;
-            const q = query(collection(db, collectionPath));
-            const activeCountEl = document.getElementById('active-user-count');
-
-            // Define "active" as active in the last 3 minutes (180,000 milliseconds)
-            const activeThresholdMs = 3 * 60 * 1000;
-
-            onSnapshot(q, (snapshot) => {
-                let activeUsers = 0;
-                const currentTimestamp = new Date().getTime();
-
-                snapshot.docs.forEach(doc => {
-                    const data = doc.data();
-                    // Check if the lastActive timestamp is within the threshold
-                    if (data.lastActive && (currentTimestamp - data.lastActive) < activeThresholdMs) {
-                        activeUsers++;
-                    }
-                });
-
-                activeCountEl.textContent = `${activeUsers} คน`;
-            }, (error) => {
-                console.error("Error counting active users: ", error);
-                activeCountEl.textContent = 'Error';
-            });
-        }
-
-
-        /**
-         * Sets up a real-time listener for the Admin Panel.
-         */
-        function setupAdminDataListener() {
-            if (!db) return;
-            
-            // Start the Active User Count listener only when Admin logs in
-            updateActiveUserCount(); 
-
-            const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
-            const q = query(collection(db, collectionPath));
-
-            onSnapshot(q, (snapshot) => {
-                const matchesListDiv = document.getElementById('matches-list');
-                const noDataMsg = document.getElementById('no-data-msg');
-                let htmlContent = '';
-                let hasData = false;
-
-                snapshot.docs.forEach((doc) => {
-                    hasData = true;
-                    const data = doc.data();
-                    const docId = doc.id; // Get the document ID for deletion
-                    const timestamp = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : 'ไม่ทราบเวลา';
-
-                    // Display all sensitive information and action buttons
-                    htmlContent += `
-                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm flex justify-between items-center">
-                            <div>
-                                <p class="font-semibold text-gray-800">${data.userName} แอบชอบ ${data.crushName}</p>
-                                <p class="text-pink-600">ความเข้ากัน: ${data.compatibility}%</p>
-                                <p class="text-xs text-gray-500">บันทึกเมื่อ: ${timestamp} | User ID: ${data.submittedBy.substring(0, 8)}... (${docId})</p>
-                            </div>
-                            <div class="flex space-x-2">
-                                <button onclick="openSendMessageModal('${data.submittedBy}')" 
-                                    class="p-2 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200 shadow-md">
-                                    ส่งข้อความ
-                                </button>
-                                <button onclick="deleteMatch('${docId}')" 
-                                    class="p-2 text-xs bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-200 shadow-md">
-                                    ลบ
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                matchesListDiv.innerHTML = htmlContent;
-
-                if (hasData) {
-                    noDataMsg.classList.add('hidden');
-                } else {
-                    noDataMsg.classList.remove('hidden');
-                    matchesListDiv.innerHTML = ''; // Ensure list is cleared if no data
-                }
-            }, (error) => {
-                console.error("Error listening to collection: ", error);
-                matchesListDiv.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: (ตรวจสอบ Security Rules) ${error.message}</p>`;
             });
         }
 
@@ -699,7 +748,7 @@
                 document.getElementById('admin-panel').classList.remove('hidden');
 
                 // Start fetching data only when the Admin Key is correct
-                setupAdminDataListener();
+                setupAdminDataListener(); 
             } else {
                 showMessage("รหัสผู้สร้างไม่ถูกต้อง! กรุณาลองใหม่อีกครั้ง");
                 document.getElementById('admin-key-input').value = ''; // Clear wrong key
