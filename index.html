@@ -64,12 +64,12 @@
             <form id="love-form" class="space-y-4">
                 <div>
                     <label for="user-name" class="block text-sm font-medium text-gray-700 mb-1">ชื่อของคุณ:</label>
-                    <input type="text" id="user-name" required placeholder="เช่น ไก่"
+                    <input type="text" id="user-name" required placeholder="ชื่อ"
                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150">
                 </div>
                 <div>
                     <label for="crush-name" class="block text-sm font-medium text-gray-700 mb-1">ชื่อคนที่คุณแอบชอบ:</label>
-                    <input type="text" id="crush-name" required placeholder="เช่น ไข่"
+                    <input type="text" id="crush-name" required placeholder=“แอบชอบ"
                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150">
                 </div>
                 <button type="submit" id="submit-button"
@@ -142,7 +142,7 @@
         
         <!-- Admin View Panel (Creator Only) -->
         <div id="admin-panel" class="card w-full lg:w-3/4 mt-8 hidden">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">ข้อมูลผู้ใช้และประวัติ (สำหรับผู้สร้าง)</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">ข้อมูลผู้ใช้และประวัติ</h2>
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-2 sm:space-y-0">
                 <p id="admin-info" class="text-sm text-gray-500">
                     User ID ของคุณ: <span id="current-user-id" class="font-mono text-xs bg-gray-100 p-1 rounded">Auth Required</span>
@@ -154,7 +154,7 @@
                 </div>
             </div>
             
-            <h3 class="text-lg font-semibold text-gray-700 mt-6 mb-2">ประวัติการคำนวณความเข้ากันทั้งหมด (ใหม่สุดอยู่บน)</h3>
+            <h3 class="text-lg font-semibold text-gray-700 mt-6 mb-2">ประวัติการคำนวณความเข้ากันทั้งหมด</h3>
             <div id="matches-list" class="space-y-3">
                 <!-- Data will be injected here -->
                 <p class="text-center text-gray-400" id="no-data-msg">ยังไม่มีข้อมูลการคำนวณ</p>
