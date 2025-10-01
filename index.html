@@ -132,23 +132,34 @@
 
 
     <script type="module">
-        // Global variables for Firebase environment (provided by the platform)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // --- ส่วนที่ 1: การตั้งค่า Firebase (สำคัญมาก ต้องแก้ไข) ---
+        // 💡 1.1 แทนที่ค่าใน object นี้ด้วย config ของ Firebase Project ของคุณ 💡
+        const firebaseConfig = {
+          apiKey: "YOUR_API_KEY", 
+          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT_ID.appspot.com",
+          messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        };
+        
+        // 💡 1.2 กำหนดรหัสผู้ดูแล (Admin User ID) 💡
+        // คัดลอก User ID ของคุณที่แสดงขึ้นมาในหน้าเว็บเมื่อรันครั้งแรก แล้วมาใส่แทนที่
+        const ADMIN_UID = 'YOUR_ADMIN_UID_HERE'; 
+
+        // -----------------------------------------------------------
+
 
         let app, db, auth;
         let userId = null;
         let isAuthReady = false;
 
-        // --- CONFIGURATION ---
-        // !!! VERY IMPORTANT: REPLACE THIS STRING with your actual User ID from the UI !!!
-        const ADMIN_UID = 'YOUR_ADMIN_UID_HERE'; 
-        // ---------------------
+        // ตัวแปรสำหรับระบุ Collection Path ใน Firestore (ใช้ projectId เป็นตัวอ้างอิง)
+        const projectAppId = firebaseConfig.projectId || 'default-project-id';
 
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // DOM elements
@@ -163,29 +174,27 @@
         const btnText = document.getElementById('btn-text');
         const btnLoading = document.getElementById('btn-loading');
 
-        // 1. Initialise Firebase and Authentication
+        // 2. Initialise Firebase and Authentication
         async function initializeAppAndAuth() {
-            if (!firebaseConfig) {
-                authStatus.innerHTML = '<span class="font-semibold text-red-500">ข้อผิดพลาดในการเริ่มต้นระบบ: "firebaseConfig" หายไป</span>';
+            // Check for critical config availability immediately
+            if (!firebaseConfig.apiKey || !firebaseConfig.projectId || firebaseConfig.apiKey.includes('YOUR_API_KEY')) {
+                userUidDisplay.textContent = 'N/A';
+                authStatus.innerHTML = '<span class="font-semibold text-red-500">ข้อผิดพลาด: ต้องกำหนดค่า Firebase Config!</span>';
+                const errorMessage = document.createElement('p');
+                errorMessage.className = 'text-center text-sm text-red-700 mt-4 p-2 bg-red-100 rounded-lg';
+                errorMessage.textContent = 'กรุณาแทนที่ YOUR_API_KEY และ YOUR_PROJECT_ID ด้วยข้อมูล Firebase Project ของคุณ (ดูขั้นตอนที่ 2)';
+                userInfoBox.after(errorMessage);
                 return;
             }
 
             try {
-                // setLogLevel('debug'); // Uncomment for debugging
-                
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                // Set session persistence (optional, but good practice)
+                // สำหรับ GitHub Pages เราใช้ Anonymous sign-in เพื่อให้ทุกคนมี ID
                 await setPersistence(auth, browserSessionPersistence);
-
-                // Sign in with token or anonymously
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                await signInAnonymously(auth);
 
                 // Set up Auth State Listener
                 onAuthStateChanged(auth, (user) => {
@@ -194,20 +203,18 @@
                         isAuthReady = true;
 
                         userUidDisplay.textContent = userId;
-                        authStatus.innerHTML = '<span class="font-semibold text-green-600">เชื่อมต่อแล้ว</span>';
+                        authStatus.innerHTML = '<span class="font-semibold text-green-600">เชื่อมต่อแล้ว (ใช้ ID นี้เพื่อเป็น Admin)</span>';
 
                         // Show admin view if current user is the admin
                         if (userId === ADMIN_UID && ADMIN_UID !== 'YOUR_ADMIN_UID_HERE') {
                             adminView.classList.remove('hidden');
-                            listenForAdminData(); // Start listening for data
-                        } else if (userId === ADMIN_UID && ADMIN_UID === 'YOUR_ADMIN_UID_HERE') {
-                             authStatus.innerHTML = '<span class="font-semibold text-yellow-500">กรุณาตั้งค่า ADMIN_UID ในโค้ด</span>';
+                            listenForAdminData(); 
+                        } else if (ADMIN_UID === 'YOUR_ADMIN_UID_HERE') {
+                             authStatus.innerHTML = '<span class="font-semibold text-yellow-500">คัดลอก ID ข้างบนไปแทนที่ ADMIN_UID ในโค้ด!</span>';
                         }
-
 
                     } else {
                         isAuthReady = true;
-                        // Fallback if sign-in failed
                         userUidDisplay.textContent = 'ไม่สามารถยืนยันตัวตนได้';
                         authStatus.innerHTML = '<span class="font-semibold text-red-500">เกิดข้อผิดพลาดในการยืนยันตัวตน</span>';
                     }
@@ -219,15 +226,15 @@
             }
         }
         
-        // 2. Data Submission Function (Write to Firestore)
+        // 3. Data Submission Function (Write to Firestore)
         async function submitCrushData(userName, crushName, percentage) {
             if (!isAuthReady || !db || !userId) {
                 console.error("Firestore not ready or user not authenticated.");
                 return;
             }
 
-            // Path: /artifacts/{appId}/public/data/compatibility_results
-            const resultsCollectionRef = collection(db, `artifacts/${appId}/public/data/compatibility_results`);
+            // Path: /artifacts/{projectId}/public/data/compatibility_results
+            const resultsCollectionRef = collection(db, `artifacts/${projectAppId}/public/data/compatibility_results`);
 
             try {
                 await addDoc(resultsCollectionRef, {
@@ -243,12 +250,11 @@
             }
         }
 
-        // 3. Admin Data Listener (Read from Firestore)
+        // 4. Admin Data Listener (Read from Firestore)
         function listenForAdminData() {
             if (!db) return;
 
-            // Path: /artifacts/{appId}/public/data/compatibility_results
-            const resultsCollectionRef = collection(db, `artifacts/${appId}/public/data/compatibility_results`);
+            const resultsCollectionRef = collection(db, `artifacts/${projectAppId}/public/data/compatibility_results`);
             const q = query(resultsCollectionRef);
 
             onSnapshot(q, (snapshot) => {
@@ -257,7 +263,6 @@
                     results.push(doc.data());
                 });
 
-                // Sort by timestamp in descending order (most recent first)
                 results.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
 
                 renderAdminTable(results);
@@ -267,10 +272,9 @@
             });
         }
 
-        // Helper Functions
-        
+        // Helper Functions (Same as before)
         function renderAdminTable(data) {
-            adminResultsTbody.innerHTML = ''; // Clear existing rows
+            adminResultsTbody.innerHTML = ''; 
             if (data.length === 0) {
                 adminResultsTbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">ยังไม่มีใครส่งข้อมูลเลย</td></tr>';
                 return;
@@ -291,7 +295,7 @@
         }
 
         function displayMessage(type, message, percentage = null) {
-            resultDisplay.className = 'result-box'; // Reset classes
+            resultDisplay.className = 'result-box'; 
             resultDisplay.innerHTML = '';
             
             let colorClass, icon, description = '';
@@ -324,12 +328,12 @@
             }
         }
         
-        // 4. Form Submission Handler
+        // 5. Form Submission Handler
         crushForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             if (!isAuthReady) {
-                displayMessage('error', 'ระบบกำลังโหลด กรุณาลองอีกครั้ง');
+                displayMessage('error', 'ระบบกำลังโหลด Firebase กรุณารอสักครู่');
                 return;
             }
 
