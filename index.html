@@ -141,11 +141,19 @@
         
         <!-- Admin View Panel (Creator Only) -->
         <div id="admin-panel" class="card w-full lg:w-3/4 mt-8 hidden">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">ข้อมูลความเข้ากันทั้งหมด (สำหรับผู้สร้าง)</h2>
-            <p id="admin-info" class="text-sm text-gray-500 mb-4">
-                User ID ของคุณ: <span id="current-user-id" class="font-mono text-xs bg-gray-100 p-1 rounded">Auth Required</span>
-                <span class="text-xs text-green-600 block mt-1" id="config-status">เชื่อมต่อ Firebase เรียบร้อย</span>
-            </p>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">ข้อมูลผู้ใช้และประวัติ (สำหรับผู้สร้าง)</h2>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-2 sm:space-y-0">
+                <p id="admin-info" class="text-sm text-gray-500">
+                    User ID ของคุณ: <span id="current-user-id" class="font-mono text-xs bg-gray-100 p-1 rounded">Auth Required</span>
+                    <span class="text-xs text-green-600 block mt-1" id="config-status">เชื่อมต่อ Firebase เรียบร้อย</span>
+                </p>
+                <div class="p-2 bg-pink-100 border border-pink-300 rounded-lg shadow-inner">
+                    <span class="text-sm font-bold text-pink-700">ผู้ใช้กำลังออนไลน์:</span>
+                    <span id="active-user-count" class="text-lg font-extrabold text-pink-900 ml-2">...</span>
+                </div>
+            </div>
+            
+            <h3 class="text-lg font-semibold text-gray-700 mt-6 mb-2">ประวัติการคำนวณความเข้ากันทั้งหมด</h3>
             <div id="matches-list" class="space-y-3">
                 <!-- Data will be injected here -->
                 <p class="text-center text-gray-400" id="no-data-msg">ยังไม่มีข้อมูลการคำนวณ</p>
@@ -158,7 +166,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, doc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, doc, deleteDoc, where, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables provided by the environment (These are available only in Canvas)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -252,7 +260,8 @@
                     if (user) {
                         userId = user.uid;
                         document.getElementById('current-user-id').textContent = userId;
-                        // IMPORTANT: Start listening for messages immediately after successful login
+                        // Start tracking presence and listening for messages immediately after successful login
+                        setupPresenceTracking();
                         setupMessageListener(); 
                     } else {
                         try {
@@ -283,6 +292,46 @@
             configStatusEl.textContent = "Error: ไม่พบ Firebase Config ที่สมบูรณ์";
             configStatusEl.classList.add('text-red-500');
             showMessage("ไม่พบการตั้งค่า Firebase ที่สมบูรณ์: ข้อมูลจะไม่ถูกบันทึก");
+        }
+
+        // --- Presence Tracking (New Feature) ---
+
+        /**
+         * Sets up real-time tracking of the current user's presence (active status).
+         * Updates the lastActive timestamp in Firestore every 60 seconds.
+         */
+        function setupPresenceTracking() {
+            if (!db || userId.includes('Required') || userId.includes('Failed')) return;
+            
+            // Path: /artifacts/{appId}/public/data/online_users/{userId}
+            const docRef = doc(db, `artifacts/${appId}/public/data/online_users`, userId);
+
+            const updateStatus = async () => {
+                try {
+                    // Use client timestamp for fast updates
+                    await setDoc(docRef, { 
+                        lastActive: new Date().getTime(), 
+                        uid: userId
+                    }, { merge: true });
+                } catch (e) {
+                    console.error("Error updating presence:", e);
+                }
+            };
+
+            // 1. Update status immediately on load
+            updateStatus();
+
+            // 2. Set interval to keep updating every minute (60,000 ms)
+            setInterval(updateStatus, 60000); 
+
+            // Optional: Attempt to remove presence on browser close (less reliable but good practice)
+            window.addEventListener('beforeunload', async () => {
+                try {
+                    await deleteDoc(docRef);
+                } catch (e) {
+                    // ignore errors during shutdown
+                }
+            });
         }
 
         // --- Firestore Data Functions ---
@@ -424,18 +473,14 @@
          */
         function setupMessageListener() {
             if (!db || userId.includes('Required') || userId.includes('Failed')) {
-                // If auth is not ready or failed, do not set up listener
                 return;
             }
             
             const collectionPath = `artifacts/${appId}/public/data/user_messages`;
-            // Query messages where the recipientId matches the current user's UID
             const q = query(collection(db, collectionPath), where("recipientId", "==", userId));
             
-            // Listen for changes
             onSnapshot(q, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
-                    // Only process new messages
                     if (change.type === "added") {
                         const messageData = change.doc.data();
                         const messageId = change.doc.id;
@@ -444,7 +489,6 @@
                         showMessage(`💌 คุณได้รับข้อความลับจากผู้สร้าง:\n\n"${messageData.message}"`, "🎉 ข้อความพิเศษ!");
                         
                         // 2. IMPORTANT: Delete the message immediately after displaying it
-                        // This makes it a one-time notification
                         const docRef = doc(db, collectionPath, messageId);
                         deleteDoc(docRef).catch(e => console.error("Error deleting message after read:", e));
                     }
@@ -453,12 +497,48 @@
                 console.error("Error listening to messages: ", error);
             });
         }
+        
+        /**
+         * Sets up a real-time listener for the count of actively online users.
+         */
+        function updateActiveUserCount() {
+            if (!db || !isAdminLoggedIn) return;
+
+            const collectionPath = `artifacts/${appId}/public/data/online_users`;
+            const q = query(collection(db, collectionPath));
+            const activeCountEl = document.getElementById('active-user-count');
+
+            // Define "active" as active in the last 3 minutes (180,000 milliseconds)
+            const activeThresholdMs = 3 * 60 * 1000;
+
+            onSnapshot(q, (snapshot) => {
+                let activeUsers = 0;
+                const currentTimestamp = new Date().getTime();
+
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    // Check if the lastActive timestamp is within the threshold
+                    if (data.lastActive && (currentTimestamp - data.lastActive) < activeThresholdMs) {
+                        activeUsers++;
+                    }
+                });
+
+                activeCountEl.textContent = `${activeUsers} คน`;
+            }, (error) => {
+                console.error("Error counting active users: ", error);
+                activeCountEl.textContent = 'Error';
+            });
+        }
+
 
         /**
          * Sets up a real-time listener for the Admin Panel.
          */
         function setupAdminDataListener() {
             if (!db) return;
+            
+            // Start the Active User Count listener only when Admin logs in
+            updateActiveUserCount(); 
 
             const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
             const q = query(collection(db, collectionPath));
