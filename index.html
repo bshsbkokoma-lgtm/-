@@ -86,7 +86,7 @@
             <!-- Custom Modal for Messages (No alert/confirm) -->
             <div id="message-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-                    <h3 class="text-xl font-bold text-gray-800 mb-3">แจ้งเตือน</h3>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3" id="modal-title">แจ้งเตือน</h3>
                     <p id="modal-message" class="text-gray-600 mb-4"></p>
                     <button onclick="closeModal('message-modal')"
                             class="w-full py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600">
@@ -114,6 +114,29 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Send Message Modal (New) -->
+            <div id="send-message-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full">
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">✉️ ส่งข้อความลับ</h3>
+                    <p class="text-gray-600 mb-2 text-sm">ผู้รับ: <span id="recipient-id-display" class="font-mono text-xs bg-gray-100 p-1 rounded"></span></p>
+                    <form id="send-message-form">
+                        <input type="hidden" id="recipient-id-input">
+                        <textarea id="message-text-input" rows="4" required placeholder="พิมพ์ข้อความที่คุณต้องการสื่อสาร..."
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500 transition duration-150 mb-4"></textarea>
+                        <div class="flex space-x-2">
+                            <button type="submit"
+                                    class="flex-1 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition duration-200">
+                                ส่งข้อความ
+                            </button>
+                            <button type="button" onclick="closeModal('send-message-modal')"
+                                    class="flex-1 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200">
+                                ยกเลิก
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
         
         <!-- Admin View Panel (Creator Only) -->
@@ -121,7 +144,7 @@
             <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">ข้อมูลความเข้ากันทั้งหมด (สำหรับผู้สร้าง)</h2>
             <p id="admin-info" class="text-sm text-gray-500 mb-4">
                 User ID ของคุณ: <span id="current-user-id" class="font-mono text-xs bg-gray-100 p-1 rounded">Auth Required</span>
-                <span class="text-xs text-red-500 block mt-1" id="config-status"></span>
+                <span class="text-xs text-green-600 block mt-1" id="config-status">เชื่อมต่อ Firebase เรียบร้อย</span>
             </p>
             <div id="matches-list" class="space-y-3">
                 <!-- Data will be injected here -->
@@ -135,7 +158,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, doc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Global variables provided by the environment (These are available only in Canvas)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -184,9 +207,25 @@
         window.closeModal = function(modalId) {
             document.getElementById(modalId).classList.add('hidden');
             document.getElementById('body').classList.remove('overflow-hidden-body');
+            // Reset message modal title/content if it was used for confirmation
+            document.getElementById('modal-title').textContent = 'แจ้งเตือน';
+            // Restore default OK button behavior
+            const modalContent = document.getElementById('message-modal').querySelector('.bg-white');
+            const buttonContainer = modalContent.querySelector('.flex.space-x-2');
+            if(buttonContainer) buttonContainer.remove();
+            
+            let defaultBtn = modalContent.querySelector('button');
+            if(!defaultBtn) {
+                 defaultBtn = document.createElement('button');
+                 defaultBtn.textContent = 'ตกลง';
+                 defaultBtn.onclick = () => closeModal(modalId);
+                 defaultBtn.className = 'w-full py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600';
+                 modalContent.appendChild(defaultBtn);
+            }
         }
 
-        function showMessage(message) {
+        function showMessage(message, title = 'แจ้งเตือน') {
+            document.getElementById('modal-title').textContent = title;
             document.getElementById('modal-message').textContent = message;
             openModal('message-modal');
         }
@@ -213,6 +252,8 @@
                     if (user) {
                         userId = user.uid;
                         document.getElementById('current-user-id').textContent = userId;
+                        // IMPORTANT: Start listening for messages immediately after successful login
+                        setupMessageListener(); 
                     } else {
                         try {
                             if (initialAuthToken) {
@@ -250,9 +291,9 @@
          * Saves the match result to the public Firestore collection.
          */
         async function saveMatch(userName, crushName, compatibility) {
-            if (!db || userId === 'Auth Required' || userId === 'Config Missing' || userId === 'Auth Failed' || userId === 'Init Failed') {
+            if (!db || userId.includes('Failed') || userId === 'Auth Required' || userId === 'Config Missing') {
                 console.warn("Firestore not ready or user not authenticated. Data not saved.");
-                showMessage("ไม่สามารถบันทึกข้อมูลได้: โปรดตรวจสอบการตั้งค่า Firebase และ Security Rules");
+                showMessage("ไม่สามารถบันทึกข้อมูลได้: โปรดตรวจสอบการตั้งค่า Firebase และ Security Rules (ข้อมูลจะหายไปเมื่อปิดหน้าเว็บ)");
                 return;
             }
 
@@ -270,9 +311,147 @@
                 console.log("Match data saved successfully.");
             } catch (e) {
                 console.error("Error adding document: ", e);
-                // The most common error here is usually due to Firestore Security Rules
                 showMessage("บันทึกข้อมูลไม่สำเร็จ: (อาจเกิดจาก Security Rules ไม่อนุญาต) " + e.message);
             }
+        }
+
+        /**
+         * Deletes a match entry by document ID.
+         * @param {string} docId The ID of the document to delete.
+         */
+        window.deleteMatch = async function(docId) {
+            if (!db || !isAdminLoggedIn) {
+                showMessage("คุณไม่มีสิทธิ์ในการลบข้อมูล หรือ Firebase ยังไม่พร้อมใช้งาน");
+                return;
+            }
+
+            const confirmDelete = await showDeleteConfirmation();
+            if (!confirmDelete) return;
+
+            const collectionPath = `artifacts/${appId}/public/data/crush_matches`;
+            const docRef = doc(db, collectionPath, docId);
+
+            try {
+                await deleteDoc(docRef);
+                showMessage("ลบข้อมูลสำเร็จ");
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                showMessage("ลบข้อมูลไม่สำเร็จ: " + e.message);
+            }
+        }
+        
+        /**
+         * Displays a custom confirmation modal for deletion.
+         */
+        function showDeleteConfirmation() {
+            return new Promise((resolve) => {
+                const modalId = 'message-modal';
+                const modalElement = document.getElementById(modalId);
+                const modalMessage = document.getElementById('modal-message');
+                const modalContent = modalElement.querySelector('.bg-white');
+                const defaultBtn = modalContent.querySelector('button');
+                if(defaultBtn) defaultBtn.remove(); // Remove default button
+
+                modalMessage.innerHTML = 'คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?';
+                document.getElementById('modal-title').textContent = '⚠️ ยืนยันการลบ';
+
+
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'flex space-x-2 mt-4';
+
+                const confirmBtn = document.createElement('button');
+                confirmBtn.textContent = 'ยืนยันการลบ';
+                confirmBtn.className = 'flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200';
+                confirmBtn.onclick = () => {
+                    closeModal(modalId);
+                    resolve(true);
+                };
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'ยกเลิก';
+                cancelBtn.className = 'flex-1 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200';
+                cancelBtn.onclick = () => {
+                    closeModal(modalId);
+                    resolve(false);
+                };
+
+                buttonContainer.appendChild(cancelBtn);
+                buttonContainer.appendChild(confirmBtn);
+                modalContent.appendChild(buttonContainer);
+                
+                openModal(modalId);
+            });
+        }
+
+        /**
+         * Opens the modal to send a message to a specific recipient.
+         * @param {string} recipientId The User ID of the recipient.
+         */
+        window.openSendMessageModal = function(recipientId) {
+            document.getElementById('recipient-id-display').textContent = recipientId;
+            document.getElementById('recipient-id-input').value = recipientId;
+            document.getElementById('message-text-input').value = '';
+            openModal('send-message-modal');
+        }
+
+        /**
+         * Saves the message to the public user_messages collection.
+         */
+        async function sendMessage(recipientId, messageText) {
+            if (!db || !isAdminLoggedIn) {
+                showMessage("คุณไม่มีสิทธิ์ในการส่งข้อความ");
+                return;
+            }
+
+            const collectionPath = `artifacts/${appId}/public/data/user_messages`;
+
+            try {
+                await addDoc(collection(db, collectionPath), {
+                    recipientId: recipientId,
+                    senderId: userId, // Creator's UID
+                    message: messageText,
+                    timestamp: serverTimestamp(),
+                });
+                showMessage("ส่งข้อความถึงผู้ใช้ " + recipientId + " เรียบร้อยแล้ว", "✉️ ส่งข้อความสำเร็จ");
+            } catch (e) {
+                console.error("Error sending message: ", e);
+                showMessage("เกิดข้อผิดพลาดในการส่งข้อความ: " + e.message);
+            }
+        }
+        
+        /**
+         * Sets up a real-time listener for messages addressed to the current user.
+         */
+        function setupMessageListener() {
+            if (!db || userId.includes('Required') || userId.includes('Failed')) {
+                // If auth is not ready or failed, do not set up listener
+                return;
+            }
+            
+            const collectionPath = `artifacts/${appId}/public/data/user_messages`;
+            // Query messages where the recipientId matches the current user's UID
+            const q = query(collection(db, collectionPath), where("recipientId", "==", userId));
+            
+            // Listen for changes
+            onSnapshot(q, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    // Only process new messages
+                    if (change.type === "added") {
+                        const messageData = change.doc.data();
+                        const messageId = change.doc.id;
+                        
+                        // 1. Show the notification to the user
+                        showMessage(`💌 คุณได้รับข้อความลับจากผู้สร้าง:\n\n"${messageData.message}"`, "🎉 ข้อความพิเศษ!");
+                        
+                        // 2. IMPORTANT: Delete the message immediately after displaying it
+                        // This makes it a one-time notification
+                        const docRef = doc(db, collectionPath, messageId);
+                        deleteDoc(docRef).catch(e => console.error("Error deleting message after read:", e));
+                    }
+                });
+            }, (error) => {
+                console.error("Error listening to messages: ", error);
+            });
         }
 
         /**
@@ -293,14 +472,27 @@
                 snapshot.docs.forEach((doc) => {
                     hasData = true;
                     const data = doc.data();
+                    const docId = doc.id; // Get the document ID for deletion
                     const timestamp = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : 'ไม่ทราบเวลา';
 
-                    // Display all sensitive information for the creator
+                    // Display all sensitive information and action buttons
                     htmlContent += `
-                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm">
-                            <p class="font-semibold text-gray-800">${data.userName} แอบชอบ ${data.crushName}</p>
-                            <p class="text-pink-600">ความเข้ากัน: ${data.compatibility}%</p>
-                            <p class="text-xs text-gray-500">บันทึกเมื่อ: ${timestamp} | User ID: ${data.submittedBy}</p>
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold text-gray-800">${data.userName} แอบชอบ ${data.crushName}</p>
+                                <p class="text-pink-600">ความเข้ากัน: ${data.compatibility}%</p>
+                                <p class="text-xs text-gray-500">บันทึกเมื่อ: ${timestamp} | User ID: ${data.submittedBy.substring(0, 8)}... (${docId})</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="openSendMessageModal('${data.submittedBy}')" 
+                                    class="p-2 text-xs bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200 shadow-md">
+                                    ส่งข้อความ
+                                </button>
+                                <button onclick="deleteMatch('${docId}')" 
+                                    class="p-2 text-xs bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-200 shadow-md">
+                                    ลบ
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
@@ -315,7 +507,7 @@
                 }
             }, (error) => {
                 console.error("Error listening to collection: ", error);
-                matchesListDiv.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: (อาจเกิดจาก Security Rules ไม่อนุญาต) ${error.message}</p>`;
+                matchesListDiv.innerHTML = `<p class="text-red-500">เกิดข้อผิดพลาดในการโหลดข้อมูล: (ตรวจสอบ Security Rules) ${error.message}</p>`;
             });
         }
 
@@ -351,6 +543,22 @@
             // Clear the form after submission
             document.getElementById('love-form').reset();
         });
+        
+        // Handle Send Message Form Submission
+        document.getElementById('send-message-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const recipientId = document.getElementById('recipient-id-input').value;
+            const messageText = document.getElementById('message-text-input').value.trim();
+
+            if (messageText) {
+                await sendMessage(recipientId, messageText);
+                closeModal('send-message-modal');
+            } else {
+                showMessage("กรุณาพิมพ์ข้อความก่อนส่ง");
+            }
+        });
+
 
         /**
          * Provides a fun message based on the percentage.
@@ -368,7 +576,8 @@
             
             // Block triple click if any modal is currently visible
             if (!document.getElementById('message-modal').classList.contains('hidden') || 
-                !document.getElementById('admin-key-modal').classList.contains('hidden')) {
+                !document.getElementById('admin-key-modal').classList.contains('hidden') ||
+                !document.getElementById('send-message-modal').classList.contains('hidden')) {
                 return; 
             }
 
